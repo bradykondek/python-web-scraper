@@ -1,33 +1,64 @@
+# Include libraries
 from tkinter import *
 from tkinter import ttk,filedialog,messagebox
 import base64
 import json
 from pathlib import Path
-
 from bs4 import BeautifulSoup
 import requests
 
-
 config = {}
 
-def fetch_url():
+# Fetch URL entered by user, then fetch content depending on selected button
+def fetch_url(button_id):
+    
+    # Get user-entered URL from field
     url = _url.get()
+
     config['images'] = []
     _images.set(())  # initialised as an empty tuple
-    try:
-        page = requests.get(url)
-    except requests.RequestException as err:
-        sb(str(err))
-    else:
-        soup = BeautifulSoup(page.content, 'html.parser')
-        images = fetch_images(soup, url)
-        if images:
-            _images.set(tuple(img['name'] for img in images))
-            sb('Images found: {}'.format(len(images)))
-        else:
-            sb('No images found')
-        config['images'] = images
 
+    #
+    try:
+        
+        # Send GET request to URL, and retrieve data from there
+        page = requests.get(url)
+
+    except requests.RequestException as err:
+        
+        # Display exception
+        sb(str(err))
+
+    else:  # occurs if no exception arises
+        
+        # Retrieve HTML content into BeautfiulSoup object
+        soup = BeautifulSoup(page.content, 'html.parser')
+        
+        # Fetch images
+        if(button_id == "img"):  # if fetch images button was selected
+            images = fetch_images(soup, url)
+            if images:
+                _images.set(tuple(img['name'] for img in images))
+                sb('Images found: {}'.format(len(images)))
+            else:
+                sb('No images found')
+            config['images'] = images
+
+        # Fetch title
+        if(button_id == "title"):  # if fetch title button was selected
+            
+            # Scrape for title; print it if found, or if none exist print that none exist
+            try:
+                
+                # Print title result to status bar of application
+                sb(f"Title found: ['{fetch_title(soup, url)}']")
+
+            except AttributeError:  # if AttributeError arises, meaning that no title was found
+
+                # Print to status bar of application that no title was found
+                sb("No title found")
+
+# Fetch images within URL
 def fetch_images(soup, base_url):
     images = []
     for img in soup.findAll('img'):
@@ -37,6 +68,19 @@ def fetch_images(soup, base_url):
         images.append(dict(name=name, url=img_url))
     return images
 
+# Fetch title within URL
+def fetch_title(soup, url):
+
+    # Making requests instance
+    reqs = requests.get(f'{url}')
+
+    # Using the BeautifulSoup module
+    titleSoup = BeautifulSoup(reqs.text, 'html.parser')
+
+    # Return title
+    return soup.title.get_text()
+
+# Save
 def save():
     if not config.get('images'):
         alert('No images to save')
@@ -51,7 +95,7 @@ def save():
             filetypes=[('JSON', '.json')])
         save_json(filename)
 
-
+# Save images to directory
 def save_images(dirname):
     if dirname and config.get('images'):
         for img in config['images']:
@@ -61,7 +105,7 @@ def save_images(dirname):
                 f.write(img_data)
         alert('Done')
 
-
+# Save as JSON file
 def save_json(filename):
     if filename and config.get('images'):
         data = {}
@@ -75,17 +119,19 @@ def save_json(filename):
             ijson.write(json.dumps(data))
         alert('Done')
 
-
+# Display message
 def sb(msg):
     _status_msg.set(msg)
 
+# Display alert message
 def alert(msg):
     messagebox.showinfo(message=msg)
 
-
+# Execute program
 if __name__ == "__main__": # execute logic if run directly
+
     _root = Tk() # instantiate instance of Tk class
-    _root.title('Scrape app')
+    _root.title("Brady's Web Scraper")
     _mainframe = ttk.Frame(_root, padding='5 5 5 5 ') # root is parent of frame
     _mainframe.grid(row=0, column=0, sticky=("E", "W", "N", "S")) # placed on first row,col of parent
     # frame can extend itself in all cardinal directions
@@ -100,13 +146,19 @@ if __name__ == "__main__": # execute logic if run directly
     _url_entry = ttk.Entry(
         _url_frame, width=40, textvariable=_url) # text box
     _url_entry.grid(row=0, column=0, sticky=(E, W, S, N), padx=5)
+    
     # grid mgr places object at position
-    _fetch_btn = ttk.Button(
-        _url_frame, text='Fetch img', command=fetch_url) # create button
-    # fetch_url() is callback for button press
-    _fetch_btn.grid(row=0, column=1, sticky=W, padx=5)
+    # Fetch img button
+    _fetch_img_btn = ttk.Button(
+        _url_frame, text='Fetch imgs', command=lambda: fetch_url("img")) # create button, fetch_url() is callback for button press, passing in "img" to fetch images
+    _fetch_img_btn.grid(row=0, column=1, sticky=W, padx=5)
 
-    # img_frame contains Lisbox and Radio Frame
+    # Fetch title button
+    _fetch_title_btn = ttk.Button(
+        _url_frame, text='Fetch title', command=lambda: fetch_url("title")) # create button, fetch_url() is callback for button press, passing in "title" to fetch title
+    _fetch_title_btn.grid(row=1, column=1, sticky=W, padx=5)
+
+    # img_frame contains Listbox and Radio Frame
     _img_frame = ttk.LabelFrame(
         _mainframe, text='Content', padding='9 0 0 0')
     _img_frame.grid(row=1, column=0, sticky=(N, S, E, W))
@@ -116,6 +168,7 @@ if __name__ == "__main__": # execute logic if run directly
     _img_listbox = Listbox(
         _img_frame, listvariable=_images, height=6, width=25)
     _img_listbox.grid(row=0, column=0, sticky=(E, W), pady=5)
+
     #Scrollbar can move vertical
     _scrollbar = ttk.Scrollbar(
         _img_frame, orient=VERTICAL, command=_img_listbox.yview)
@@ -155,7 +208,7 @@ if __name__ == "__main__": # execute logic if run directly
         _root, relief='sunken', padding='2 2 2 2')
     _status_frame.grid(row=1, column=0, sticky=("E", "W", "S"))
     _status_msg = StringVar() # need modified when update status text
-    _status_msg.set('Tye a URL to start scraping...')
+    _status_msg.set('Type a URL to start scraping')
     _status= ttk.Label(
         _status_frame, textvariable=_status_msg, anchor=W)
     _status.grid(row=0, column=0, sticky=(E, W))
