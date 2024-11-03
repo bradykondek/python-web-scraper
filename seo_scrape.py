@@ -146,7 +146,7 @@ def fetch_urls(url):
     # Return list of links
     return linksList
 
-# Save
+# Save images
 def save():
     if not config.get('images'):
         alert('No images to save')
