@@ -1,2 +1,2 @@
-# ch12_server
-Web scraper application to build features on for class activity
+# Brady's Python Web Scraper
+This program scrapes a specific webpage for all images, its title, and external URLs; in a graphical user interface (GUI) environment, and using BeautifulSoup.
